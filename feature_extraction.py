@@ -3,6 +3,9 @@ import json
 import gc
 import pickle
 
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
@@ -31,6 +34,7 @@ preprocessed_products_path = os.path.join(output_dir, 'preprocessed_products.jso
 preprocessed_test_queries_path = os.path.join(output_dir, 'preprocessed_test_queries.jsonl')
 
 train_dat_file_path = os.path.join(volume_dir, 'train.dat')
+validation_dat_file_path = os.path.join(volume_dir, 'validation.dat')
 
 # random_projection_mat_path = os.path.join(output_dir, 'random_projection_mat.npy')
 product_features_path = os.path.join(volume_dir, 'product_features.npy')
@@ -44,7 +48,7 @@ VOCAB_SIZE = 4096
 # Embedding dimension used for random projection of TF-IDF vectors.
 EMBEDDING_DIM = 256
 # Number of training samples to use (set to None to use all samples).
-NUM_TRAIN_SAMPLES = None
+NUM_TRAIN_SAMPLES = 10_000
 
 # Load aggregated search data which will be used as training data.
 aggregated_searches_df = pd.DataFrame(read_json_lines(aggregated_search_data_path, n_lines=NUM_TRAIN_SAMPLES))
@@ -71,11 +75,18 @@ products_id_to_idx = dict((p_id, idx) for idx, p_id in enumerate(products_data_d
 # with open(products_id_to_idx_path, 'wb') as f:
 #     pickle.dump(products_id_to_idx, f)
 
+aggregated_searches_train_df, aggregated_searches_validation_df = train_test_split(aggregated_searches_df, test_size=0.2, random_state=42)
 
 queries_test_projected = np.load(queries_test_features_path)
-queries_train_projected = np.load(queries_train_features_path)
+queries_train_projected, queries_validation_projected = train_test_split(np.load(queries_train_features_path), test_size=0.2, random_state=42)
 products_projected = np.load(product_features_path)
-products_projected = np.concatenate((products_projected, products_data_df.drop(['id', 'title_normalized'], axis=1).values), axis=1)
+# products_data_df = products_data_df.fillna(-1)
+
+# pca = PCA(n_components=128)
+# test = pca.fit_transform(products_projected)
+test = np.concatenate((products_projected, products_data_df.drop(['id', 'title_normalized'], axis=1).values), axis=1)
+test = np.nan_to_num(test, nan=-1)
+# test = pca.fit_transform(test)
 
 # del ft_model
 # gc.collect();
@@ -153,6 +164,8 @@ def create_dat_file(
                 features = np.concatenate((product_features[p_idx], query_features[qid]))
                 features = np.around(features, 3)
 
+                # new_str = f"{candidate_score} qid:{qid} " + " ".join([f"{i}:{s}" for i, s in enumerate(features)]) + "\n"
+
                 file.write(
                     f"{candidate_score} qid:{qid} "
                     + " ".join([f"{i}:{s}" for i, s in enumerate(features)])
@@ -162,8 +175,16 @@ def create_dat_file(
 
 create_dat_file(
     train_dat_file_path,
-    aggregated_searches_df,
+    aggregated_searches_train_df,
     queries_train_projected,
-    products_projected,
+    test,
+    n_candidates=200,
+)
+
+create_dat_file(
+    validation_dat_file_path,
+    aggregated_searches_validation_df,
+    queries_validation_projected,
+    test,
     n_candidates=200,
 )
