@@ -3,7 +3,8 @@ import json
 import gc
 import pickle
 
-from sklearn.preprocessing import StandardScaler
+from scipy.spatial.distance import cosine
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.decomposition import PCA
 from tqdm import tqdm
@@ -38,15 +39,12 @@ validation_dat_file_path = os.path.join(volume_dir, 'validation.dat')
 
 # random_projection_mat_path = os.path.join(output_dir, 'random_projection_mat.npy')
 product_features_path = os.path.join(volume_dir, 'product_features.npy')
+product_name_features_path = os.path.join(volume_dir, 'product_name_features.npy')
+product_category_features_path = os.path.join(volume_dir, 'product_category_features.npy')
 queries_train_features_path = os.path.join(volume_dir, 'queries_train_features.npy')
 queries_test_features_path = os.path.join(volume_dir, 'queries_test_features.npy')
 products_id_to_idx_path = os.path.join(volume_dir, 'products_id_to_idx.pkl')
 
-
-# Number of tokens in the vocabulary of TF-IDF.
-VOCAB_SIZE = 4096
-# Embedding dimension used for random projection of TF-IDF vectors.
-EMBEDDING_DIM = 256
 # Number of training samples to use (set to None to use all samples).
 NUM_TRAIN_SAMPLES = 10_000
 
@@ -55,41 +53,60 @@ aggregated_searches_df = pd.DataFrame(read_json_lines(aggregated_search_data_pat
 # Load preprocessed product data.
 products_data_df = pd.DataFrame(read_json_lines(preprocessed_products_path))
 # Load preprocessed test queries.
-test_offline_queries_df = pd.DataFrame(read_json_lines(preprocessed_test_queries_path))
+# test_offline_queries_df = pd.DataFrame(read_json_lines(preprocessed_test_queries_path))
 
 # Create a mapping from ID of products to their integer index.
 products_id_to_idx = dict((p_id, idx) for idx, p_id in enumerate(products_data_df['id']))
 
 # Load fasttext model and vectorize all text
-# ft_model = fasttext.load_model('../models/cc.fa.300.bin')
+# ft_model = fasttext.load_model('/mnt/h/models/cc.fa.300.bin')
 # queries_test_projected = np.array([ft_model.get_sentence_vector(x) for x in tqdm(test_offline_queries_df['raw_query_normalized'].values)])
 # queries_train_projected = np.array([ft_model.get_sentence_vector(x) for x in tqdm(aggregated_searches_df['raw_query_normalized'].values)])
-# products_projected = np.array([ft_model.get_sentence_vector(x) for x in tqdm(products_data_df['title_normalized'].values)])
+# products_name_projected = np.array([ft_model.get_sentence_vector(x) for x in tqdm(products_data_df['title_normalized'].values)])
+# products_category_projected = np.array([ft_model.get_sentence_vector(x) for x in tqdm(products_data_df['category_name'].values)])
 
 # Since memory is limited, we store all the neccessary data
 # such as extracted features on disk. Later, in inference
 # step we may need some of these files.
-# np.save(product_features_path, products_projected)
+# np.save(product_category_features_path, products_category_projected)
+# np.save(product_name_features_path, products_name_projected)
 # np.save(queries_train_features_path, queries_train_projected)
 # np.save(queries_test_features_path, queries_test_projected)
 # with open(products_id_to_idx_path, 'wb') as f:
-#     pickle.dump(products_id_to_idx, f)
+    # pickle.dump(products_id_to_idx, f)
+# exit()
 
-aggregated_searches_train_df, aggregated_searches_validation_df = train_test_split(aggregated_searches_df, test_size=0.2, random_state=42)
+# queries_test_projected = np.load(queries_test_features_path)
+queries_train_projected = np.load(queries_train_features_path)
+products_name_projected = np.load(product_name_features_path)
+# products_projected = np.load('/mnt/h/torob_data/products_full_projected.npy')
+# products_category_projected = np.load(product_category_features_path)
 
-queries_test_projected = np.load(queries_test_features_path)
-queries_train_projected, queries_validation_projected = train_test_split(np.load(queries_train_features_path), test_size=0.2, random_state=42)
-products_projected = np.load(product_features_path)
-# products_data_df = products_data_df.fillna(-1)
+# pca = PCA(n_components=128)
+# test1 = pca.fit_transform(products_projected)
+# test2 = pca.fit_transform(products_category_projected)
+# np.save('/mnt/h/torob_data/products_full_projected.npy', np.concatenate((test1, test2), axis=1))
+# exit()
+
+aggregated_searches_train_df, aggregated_searches_validation_df = train_test_split(aggregated_searches_df, test_size=0.1, random_state=42)
+queries_train_projected, queries_validation_projected = train_test_split(queries_train_projected, test_size=0.1, random_state=42)
+
+ss = StandardScaler()
+le = LabelEncoder()
+# mm = MinMaxScaler()
 
 # pca = PCA(n_components=128)
 # test = pca.fit_transform(products_projected)
-test = np.concatenate((products_projected, products_data_df.drop(['id', 'title_normalized'], axis=1).values), axis=1)
-test = np.nan_to_num(test, nan=-1)
+product_vector = np.concatenate((products_name_projected, ss.fit_transform(products_data_df.drop(['id', 'title_normalized', 'category_name'], axis=1).values)), axis=1)
+product_vector = np.nan_to_num(product_vector, nan=-1)
+
+np.save(product_features_path, product_vector)
+
 # test = pca.fit_transform(test)
 
 # del ft_model
-# gc.collect();
+del products_data_df, ss, products_name_projected
+gc.collect();
 
 
 def create_dat_file(
@@ -161,6 +178,8 @@ def create_dat_file(
                 candidate_score = np.log2(candidate_score + 1)
 
                 p_idx = products_id_to_idx[candidate_product_id]
+
+                # similarity = cosine(product_features[p_idx][:-6], query_features[qid])
                 features = np.concatenate((product_features[p_idx], query_features[qid]))
                 features = np.around(features, 3)
 
@@ -177,7 +196,7 @@ create_dat_file(
     train_dat_file_path,
     aggregated_searches_train_df,
     queries_train_projected,
-    test,
+    product_vector,
     n_candidates=200,
 )
 
@@ -185,6 +204,14 @@ create_dat_file(
     validation_dat_file_path,
     aggregated_searches_validation_df,
     queries_validation_projected,
-    test,
+    product_vector,
     n_candidates=200,
 )
+
+# create_dat_file(
+#     train_dat_file_path,
+#     aggregated_searches_df,
+#     queries_train_projected,
+#     product_vector,
+#     n_candidates=200,
+# )

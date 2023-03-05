@@ -7,27 +7,27 @@ volume_dir = ('/mnt/h/torob_data/')
 
 train_dat_path = os.path.join(volume_dir, 'train.dat')
 validation_dat_path = os.path.join(volume_dir, 'validation.dat')
-model_path = os.path.join(output_dir, 'ranker_full_ndcg_306features.json')
+model_path = os.path.join(output_dir, 'ranker_full_ndcg.json')
 
 train_data = xgb.DMatrix(train_dat_path)
-validation_data = xgb.DMatrix(validation_dat_path)
+# validation_data = xgb.DMatrix(validation_dat_path)
 
 param = {
     "max_depth": 20,
-    "eta": 0.2,
+    "eta": 0.3,
     "objective": "rank:ndcg",
     "verbosity": 1,
     "num_parallel_tree": 1,
     "tree_method": "gpu_hist",
     "eval_metric": ["map", "ndcg"],
 }
-eval_list = [(train_data, "train"), (validation_data, "validation")]
+eval_list = [(train_data, "train")]
 
 model = xgb.train(
     param,
     train_data,
-    early_stopping_rounds=50,
-    num_boost_round=400,
+    early_stopping_rounds=40,
+    num_boost_round=200,
     evals=eval_list,
 )
 

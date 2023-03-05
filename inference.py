@@ -34,7 +34,7 @@ products_id_to_idx_path = os.path.join(volume_dir, 'products_id_to_idx.pkl')
 
 predictions_path = os.path.join(output_dir, 'predictions.txt')
 
-model_path = os.path.join(output_dir, 'ranker_full_ndcg_306features.json')
+model_path = os.path.join(output_dir, 'ranker_full_ndcg.json')
 
 
 # Load projected products and queries data.
