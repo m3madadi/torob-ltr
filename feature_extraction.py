@@ -10,7 +10,7 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-import fasttext
+#import fasttext
 
 def read_json_lines(path, n_lines=None):
     """Creates a generator which reads and returns lines of
@@ -42,11 +42,11 @@ queries_train_features_path = os.path.join(volume_dir, 'queries_train_features.n
 queries_test_features_path = os.path.join(volume_dir, 'queries_test_features.npy')
 products_id_to_idx_path = os.path.join(volume_dir, 'products_id_to_idx.pkl')
 
-
+#-----TF-IDF not used
 # Number of tokens in the vocabulary of TF-IDF.
-VOCAB_SIZE = 4096
+#VOCAB_SIZE = 4096
 # Embedding dimension used for random projection of TF-IDF vectors.
-EMBEDDING_DIM = 256
+#EMBEDDING_DIM = 256
 # Number of training samples to use (set to None to use all samples).
 NUM_TRAIN_SAMPLES = 10_000
 
