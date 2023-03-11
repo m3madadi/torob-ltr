@@ -1,16 +1,8 @@
-import os
+import properties
 import xgboost as xgb
 
-
-output_dir = os.path.join('output_data')
-volume_dir = ('/mnt/h/torob_data/')
-
-train_dat_path = os.path.join(volume_dir, 'train.dat')
-validation_dat_path = os.path.join(volume_dir, 'validation.dat')
-model_path = os.path.join(output_dir, 'ranker_full_ndcg.json')
-
-train_data = xgb.DMatrix(train_dat_path)
-# validation_data = xgb.DMatrix(validation_dat_path)
+train_data = xgb.DMatrix(properties.train_dat_path)
+# validation_data = xgb.DMatrix(properties.validation_dat_path)
 
 param = {
     "max_depth": 20,
@@ -21,14 +13,15 @@ param = {
     "tree_method": "gpu_hist",
     "eval_metric": ["map", "ndcg"],
 }
+# eval_list = [(train_data, "train"), (validation_data, "validation")]
 eval_list = [(train_data, "train")]
 
 model = xgb.train(
     param,
     train_data,
     early_stopping_rounds=40,
-    num_boost_round=200,
+    num_boost_round=250,
     evals=eval_list,
 )
 
-model.save_model(model_path)
+model.save_model(properties.model_path)

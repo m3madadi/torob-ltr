@@ -1,4 +1,4 @@
-import os
+import properties
 import pickle
 import json
 
@@ -22,35 +22,26 @@ def read_json_lines(path, n_lines=None):
             yield json.loads(line)
 
 
-data_dir = os.path.join('data')
-output_dir = os.path.join('output_data')
-volume_dir = ('/mnt/h/torob_data/')
-
-test_data_path = os.path.join(data_dir, 'test-offline-data_v1.jsonl')
-
-product_features_path = os.path.join(volume_dir, 'product_features.npy')
-queries_test_features_path = os.path.join(volume_dir, 'queries_test_features.npy')
-products_id_to_idx_path = os.path.join(volume_dir, 'products_id_to_idx.pkl')
-
-predictions_path = os.path.join(output_dir, 'predictions.txt')
-
-model_path = os.path.join(output_dir, 'ranker_full_ndcg.json')
-
-
 # Load projected products and queries data.
-products_projected = np.load(product_features_path)
-queries_test_projected = np.load(queries_test_features_path)
-with open(products_id_to_idx_path, 'rb') as f:
+products_projected = np.load(properties.product_features_path)
+queries_test_projected = np.load(properties.queries_test_features_path)
+
+with open(properties.products_id_to_idx_path, 'rb') as f:
     products_id_to_idx = pickle.load(f)
+
+# Load PCA model and transform test set
+# with open(properties.query_pca_path, 'rb') as f:
+#     query_pca = pickle.load(f)
+# queries_test_projected = query_pca.transform(queries_test_projected)
 
 
 # Load original test data which contains the result to be ranked.
-test_data_df = pd.DataFrame(read_json_lines(test_data_path))
+test_data_df = pd.DataFrame(read_json_lines(properties.test_data_path))
 
 # Load trained LambdaMART model.
 param = {}
 model = xgb.Booster(**param)
-model.load_model(model_path)
+model.load_model(properties.model_path)
 
 BATCH_SIZE = 64
 test_predictions = []
@@ -85,4 +76,4 @@ def write_test_predictions(predictions_path, predictions):
     with open(predictions_path, 'w') as f:
         f.write("\n".join(lines))
 
-write_test_predictions(predictions_path, test_predictions)
+write_test_predictions(properties.predictions_path, test_predictions)
