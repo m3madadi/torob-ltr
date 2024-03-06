@@ -6,12 +6,15 @@ NUM_TRAIN_SAMPLES = None
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 EMBEDDING_DIM = 128
 
+data_dir = os.path.join('data')
 output_dir = os.path.join('output_data')
 volume_dir = ('/mnt/h/torob_data/')
 
 model_path = os.path.join(output_dir, 'ranker.json')
 
 predictions_path = os.path.join(output_dir, 'predictions.txt')
+
+test_data_path = os.path.join(data_dir, 'test-offline-data_v1.jsonl')
 
 aggregated_search_data_path = os.path.join(output_dir, 'aggregated_search_data.jsonl')
 preprocessed_products_path = os.path.join(output_dir, 'preprocessed_products.jsonl')

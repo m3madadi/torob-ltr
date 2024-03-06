@@ -2,6 +2,7 @@ import json
 import gc
 import pickle
 import properties
+from collections import Counter
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
@@ -28,12 +29,11 @@ def read_json_lines(path, n_lines=None):
 # Load aggregated search data which will be used as training data.
 aggregated_searches_df = pd.DataFrame(read_json_lines(properties.aggregated_search_data_path, n_lines=properties.NUM_TRAIN_SAMPLES))
 # Load preprocessed product data.
-products_data_df = pd.DataFrame(read_json_lines(properties.preprocessed_products_path))
-
+# products_data_df = pd.DataFrame(read_json_lines(properties.preprocessed_products_path))
 
 queries_train_projected = np.load(properties.queries_train_features_path)
-products_name_projected = np.load(properties.product_name_features_path)
-# product_vector = np.load(properties.product_features_path)
+# products_name_projected = np.load(properties.product_name_features_path)
+product_vector = np.load(properties.product_features_path)
 # products_category_projected = np.load(product_category_features_path)
 
 # Fit PCA model for queries
@@ -45,10 +45,15 @@ products_name_projected = np.load(properties.product_name_features_path)
 with open(properties.products_id_to_idx_path, 'rb') as f:
     products_id_to_idx = pickle.load(f)
 
-# aggregated_searches_train_df, aggregated_searches_validation_df = train_test_split(aggregated_searches_df, test_size=0.1, random_state=42)
-# queries_train_projected, queries_validation_projected = train_test_split(queries_train_projected, test_size=0.1, random_state=42)
+aggregated_searches_train_df, aggregated_searches_validation_df = train_test_split(aggregated_searches_df, test_size=0.04, random_state=42)
+queries_train_projected, queries_validation_projected = train_test_split(queries_train_projected, test_size=0.04, random_state=42)
 
-ss = StandardScaler()
+aggregated_searches_train_df = aggregated_searches_train_df.reset_index()
+remove_index = aggregated_searches_train_df[aggregated_searches_train_df['query_count'] == 1].index
+aggregated_searches_train_df = aggregated_searches_train_df[~aggregated_searches_train_df.index.isin(remove_index)]
+queries_train_projected = np.delete(queries_train_projected, remove_index.values, axis=0)
+
+# ss = StandardScaler()
 # le = LabelEncoder()
 # mm = MinMaxScaler()
 
@@ -56,9 +61,9 @@ ss = StandardScaler()
 # product_pca = PCA(n_components=64)
 # products_name_projected = product_pca.fit_transform(products_name_projected)
 
-product_vector = np.concatenate((products_name_projected, ss.fit_transform(products_data_df.drop(['id', 'title_normalized', 'category_name'], axis=1).values)), axis=1)
-product_vector = np.nan_to_num(product_vector, nan=0)
-np.save(properties.product_features_path, product_vector)
+# product_vector = np.concatenate((products_name_projected, ss.fit_transform(products_data_df.drop(['id', 'title_normalized', 'category_name'], axis=1).values)), axis=1)
+# product_vector = np.nan_to_num(product_vector, nan=0)
+# np.save(properties.product_features_path, product_vector)
 # exit()
 
 def create_dat_file(
@@ -67,6 +72,7 @@ def create_dat_file(
     query_features,
     product_features,
     n_candidates=None,
+    train=True,
 ):
     """
     Create a `dat` file which is the training data of LambdaMart model.
@@ -117,6 +123,10 @@ def create_dat_file(
     """
     with open(dat_file_path, "w") as file:
         for qid, agg_search in tqdm(enumerate(agg_searches_df.itertuples(index=False)), total=len(agg_searches_df)):
+            # if len(agg_search.clicks_count) <= 10 and all(i <= 4 for i in agg_search.clicks_count):
+            # if len(agg_search.clicks_count) == 1:
+            # if all(i <= 7 for i in agg_search.clicks_count) and train:
+                # continue
             if n_candidates is None:
                 limit = len(agg_search.results)
             else:
@@ -144,26 +154,40 @@ def create_dat_file(
                 )
 
 
+create_dat_file(
+    properties.train_dat_file_path,
+    aggregated_searches_train_df,
+    queries_train_projected,
+    product_vector,
+    n_candidates=200,
+)
+
+create_dat_file(
+    properties.validation_dat_file_path,
+    aggregated_searches_validation_df,
+    queries_validation_projected,
+    product_vector,
+    n_candidates=200,
+    train=False
+)
+
 # create_dat_file(
 #     properties.train_dat_file_path,
-#     aggregated_searches_train_df,
+#     aggregated_searches_df,
 #     queries_train_projected,
 #     product_vector,
 #     n_candidates=200,
 # )
 
-# create_dat_file(
-#     properties.validation_dat_file_path,
-#     aggregated_searches_validation_df,
-#     queries_validation_projected,
-#     product_vector,
-#     n_candidates=200,
-# )
 
-create_dat_file(
-    properties.train_dat_file_path,
-    aggregated_searches_df,
-    queries_train_projected,
-    product_vector,
-    n_candidates=200,
-)
+# splits = 30
+# counter = 1
+# for i, j in zip(np.array_split(aggregated_searches_df, splits), np.array_split(queries_train_projected, splits)):
+#     create_dat_file(
+#         properties.train_dat_file_path + str(counter),
+#         i,
+#         j,
+#         product_vector,
+#         n_candidates=200,
+#     )
+#     counter += 1

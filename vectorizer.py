@@ -105,14 +105,14 @@ def load_st_model(model_name_or_path):
 
 
 # Load aggregated search data which will be used as training data.
-aggregated_searches_df = pd.DataFrame(read_json_lines(properties.aggregated_search_data_path, n_lines=properties.NUM_TRAIN_SAMPLES))
+# aggregated_searches_df = pd.DataFrame(read_json_lines(properties.aggregated_search_data_path, n_lines=properties.NUM_TRAIN_SAMPLES))
 # Load preprocessed product data.
 products_data_df = pd.DataFrame(read_json_lines(properties.preprocessed_products_path))
 # Load preprocessed test queries.
-test_offline_queries_df = pd.DataFrame(read_json_lines(properties.preprocessed_test_queries_path))
+# test_offline_queries_df = pd.DataFrame(read_json_lines(properties.preprocessed_test_queries_path))
 
 # Create a mapping from ID of products to their integer index.
-products_id_to_idx = dict((p_id, idx) for idx, p_id in enumerate(products_data_df['id']))
+# products_id_to_idx = dict((p_id, idx) for idx, p_id in enumerate(products_data_df['id']))
 
 
 embedder = load_st_model('/mnt/d/Models/bert-zwnj-wnli-mean-tokens')
@@ -123,23 +123,21 @@ embedder = load_st_model('/mnt/d/Models/bert-zwnj-wnli-mean-tokens')
 # queries_train_bert_projected = dim_reduction(aggregated_searches_df['raw_query_normalized'].values, embedder)
 # np.save(properties.queries_train_features_path, queries_train_bert_projected)
 
-products_name_bert_projected = dim_reduction(products_data_df['title_normalized'].values, embedder)
-np.save(properties.product_name_features_path, products_name_bert_projected)
+# products_name_bert_projected = dim_reduction(products_data_df['title_normalized'].values, embedder)
+# np.save(properties.product_name_features_path, products_name_bert_projected)
 
-# var = round(len(products_data_df) / 2)
+var = round(len(products_data_df) / 2)
+
 # products_name_bert_projected = dim_reduction(products_data_df['title_normalized'].values[:var], embedder)
-# np.save(product_name_features_path, products_name_bert_projected)
-# del products_name_bert_projected
+# np.save(properties.product_name_features_path, products_name_bert_projected)
 
-# products_name_bert_projected = dim_reduction(products_data_df['title_normalized'].values[var:], embedder)
-# test = np.load(product_name_features_path)
-# test = np.concatenate((test, products_name_bert_projected), axis=0)
-# np.save(product_name_features_path, test)
-# del products_name_bert_projected
+products_name_bert_projected = dim_reduction(products_data_df['title_normalized'].values[var:], embedder)
+tmp_product_name_feature = np.load(properties.product_name_features_path)
+tmp_product_name_feature = np.concatenate((tmp_product_name_feature, products_name_bert_projected), axis=0)
+np.save(properties.product_name_features_path, tmp_product_name_feature)
 
 # gc.collect()
 # torch.cuda.empty_cache()
-
 
 # Load fasttext model and vectorize all text
 # ft_model = fasttext.load_model('/mnt/h/models/cc.fa.300.bin')
@@ -155,6 +153,6 @@ np.save(properties.product_name_features_path, products_name_bert_projected)
 # np.save(product_name_features_path, products_name_projected)
 # np.save(queries_train_features_path, queries_train_projected)
 # np.save(queries_test_features_path, queries_test_projected)
-with open(properties.products_id_to_idx_path, 'wb') as f:
-    pickle.dump(products_id_to_idx, f)
+# with open(properties.products_id_to_idx_path, 'wb') as f:
+#     pickle.dump(products_id_to_idx, f)
 # exit()
